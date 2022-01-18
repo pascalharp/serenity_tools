@@ -12,9 +12,9 @@ struct ButtonInfo {
 impl ButtonInfo {
     fn create(&self) -> CreateButton {
         let mut button = CreateButton::default();
-        button.label(CONFIRM_BUTTON.text);
-        button.custom_id(CONFIRM_BUTTON.id);
-        button.emoji(ReactionType::from(CONFIRM_BUTTON.emoji));
+        button.label(self.text);
+        button.custom_id(self.id);
+        button.emoji(ReactionType::from(self.emoji));
         button
     }
 }
