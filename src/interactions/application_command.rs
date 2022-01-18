@@ -18,7 +18,7 @@ use crate::builder::CreateEmbedExt;
 pub trait ApplicationCommandInteractionExt {
     async fn create_quick_info<T: ToString + Send>(
         &self,
-        ctx: Context,
+        ctx: &Context,
         kind: InteractionResponseType,
         text: T,
         ephemeral: bool,
@@ -26,7 +26,7 @@ pub trait ApplicationCommandInteractionExt {
 
     async fn create_quick_error<T: ToString + Send>(
         &self,
-        ctx: Context,
+        ctx: &Context,
         kind: InteractionResponseType,
         text: T,
         ephemeral: bool,
@@ -41,7 +41,7 @@ pub trait ApplicationCommandInteractionExt {
 impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
     async fn create_quick_info<T: ToString + Send>(
         &self,
-        ctx: Context,
+        ctx: &Context,
         kind: InteractionResponseType,
         text: T,
         ephemeral: bool,
@@ -60,7 +60,7 @@ impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
 
     async fn create_quick_error<T: ToString + Send>(
         &self,
-        ctx: Context,
+        ctx: &Context,
         kind: InteractionResponseType,
         text: T,
         ephemeral: bool,
