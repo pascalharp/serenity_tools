@@ -32,9 +32,9 @@ pub trait ApplicationCommandInteractionExt {
         ephemeral: bool,
     ) -> Result<()>;
 
-    async fn edit_quick_info<T: ToString + Send>(&self, ctx: Context, text: T) -> Result<Message>;
+    async fn edit_quick_info<T: ToString + Send>(&self, ctx: &Context, text: T) -> Result<Message>;
 
-    async fn edit_error_info<T: ToString + Send>(&self, ctx: Context, text: T) -> Result<Message>;
+    async fn edit_error_info<T: ToString + Send>(&self, ctx: &Context, text: T) -> Result<Message>;
 }
 
 #[async_trait]
@@ -77,7 +77,7 @@ impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
         .await
     }
 
-    async fn edit_quick_info<T: ToString + Send>(&self, ctx: Context, text: T) -> Result<Message> {
+    async fn edit_quick_info<T: ToString + Send>(&self, ctx: &Context, text: T) -> Result<Message> {
         self.edit_original_interaction_response(ctx, |d| {
             d.content("");
             d.set_embeds(Vec::new());
@@ -86,7 +86,7 @@ impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
         .await
     }
 
-    async fn edit_error_info<T: ToString + Send>(&self, ctx: Context, text: T) -> Result<Message> {
+    async fn edit_error_info<T: ToString + Send>(&self, ctx: &Context, text: T) -> Result<Message> {
         self.edit_original_interaction_response(ctx, |d| {
             d.content("");
             d.set_embeds(Vec::new());
