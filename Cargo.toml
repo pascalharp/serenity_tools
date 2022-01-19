@@ -6,4 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serenity = { git = "https://github.com/serenity-rs/serenity", branch = "current", features = ["model", "unstable_discord_api"] }
+serenity = { git = "https://github.com/serenity-rs/serenity", branch = "current", features = ["model", "unstable_discord_api", "collector"] }

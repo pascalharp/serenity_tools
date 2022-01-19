@@ -1,4 +1,6 @@
 pub mod builder;
+pub mod collectors;
+pub mod components;
 pub mod interactions;
 
 #[cfg(test)]
