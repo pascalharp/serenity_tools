@@ -49,7 +49,7 @@ impl Button {
                 b
             }
             Self::Abort => {
-                let mut b = CONFIRM_BUTTON.create();
+                let mut b = ABORT_BUTTON.create();
                 b.style(ButtonStyle::Danger);
                 b
             }
