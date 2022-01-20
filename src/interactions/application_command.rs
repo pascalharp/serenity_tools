@@ -16,10 +16,11 @@ use crate::builder::CreateEmbedExt;
 
 #[async_trait]
 pub trait ApplicationCommandInteractionExt {
+    async fn deferred(&self, ctx: &Context) -> Result<()>;
+
     async fn create_quick_info<T: ToString + Send>(
         &self,
         ctx: &Context,
-        kind: InteractionResponseType,
         text: T,
         ephemeral: bool,
     ) -> Result<()>;
@@ -27,7 +28,6 @@ pub trait ApplicationCommandInteractionExt {
     async fn create_quick_error<T: ToString + Send>(
         &self,
         ctx: &Context,
-        kind: InteractionResponseType,
         text: T,
         ephemeral: bool,
     ) -> Result<()>;
@@ -68,15 +68,21 @@ pub trait ApplicationCommandInteractionExt {
 
 #[async_trait]
 impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
+    async fn deferred(&self, ctx: &Context) -> Result<()> {
+        self.create_interaction_response(ctx, |r| {
+            r.kind(InteractionResponseType::DeferredChannelMessageWithSource)
+        })
+        .await
+    }
+
     async fn create_quick_info<T: ToString + Send>(
         &self,
         ctx: &Context,
-        kind: InteractionResponseType,
         text: T,
         ephemeral: bool,
     ) -> Result<()> {
         self.create_interaction_response(ctx, |r| {
-            r.kind(kind);
+            r.kind(InteractionResponseType::ChannelMessageWithSource);
             r.interaction_response_data(|d| {
                 if ephemeral {
                     d.flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL);
@@ -90,12 +96,11 @@ impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
     async fn create_quick_error<T: ToString + Send>(
         &self,
         ctx: &Context,
-        kind: InteractionResponseType,
         text: T,
         ephemeral: bool,
     ) -> Result<()> {
         self.create_interaction_response(ctx, |r| {
-            r.kind(kind);
+            r.kind(InteractionResponseType::ChannelMessageWithSource);
             r.interaction_response_data(|d| {
                 if ephemeral {
                     d.flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL);
@@ -110,6 +115,7 @@ impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
         self.edit_original_interaction_response(ctx, |d| {
             d.content("");
             d.set_embeds(Vec::new());
+            d.components(|c| c);
             d.add_embed(CreateEmbed::info_box(text))
         })
         .await
@@ -123,6 +129,7 @@ impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
         self.edit_original_interaction_response(ctx, |d| {
             d.content("");
             d.set_embeds(Vec::new());
+            d.components(|c| c);
             d.add_embed(CreateEmbed::error_box(text))
         })
         .await
