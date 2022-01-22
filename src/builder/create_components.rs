@@ -4,6 +4,8 @@ use serenity::builder::{CreateActionRow, CreateComponents};
 pub trait CreateActionRowExt {
     fn confirm_button(&mut self) -> &mut Self;
     fn abort_button(&mut self) -> &mut Self;
+    fn next_button(&mut self) -> &mut Self;
+    fn prev_button(&mut self) -> &mut Self;
 }
 
 impl CreateActionRowExt for CreateActionRow {
@@ -13,6 +15,14 @@ impl CreateActionRowExt for CreateActionRow {
 
     fn abort_button(&mut self) -> &mut Self {
         self.add_button(Button::Abort.create())
+    }
+
+    fn next_button(&mut self) -> &mut Self {
+        self.add_button(Button::Next.create())
+    }
+
+    fn prev_button(&mut self) -> &mut Self {
+        self.add_button(Button::Previous.create())
     }
 }
 

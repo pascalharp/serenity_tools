@@ -1,12 +1,19 @@
 use std::{collections::{HashSet, HashMap}, time::Duration, hash::Hash, fmt::Display};
 
 use serenity::{
+    futures::StreamExt,
     client::{bridge::gateway::ShardMessenger, Context}, collector::CollectComponentInteraction,
     model::{channel::{Message, ReactionType}, interactions::message_component::ButtonStyle}, async_trait, builder::{CreateButton, CreateEmbed, CreateActionRow},
     Result as SerenityResult,
 };
 
-use crate::builder::CreateActionRowExt;
+use tokio::{time::sleep, select};
+
+use crate::{
+    components::Button,
+    builder::CreateActionRowExt,
+    interactions::MessageComponentInteractionExt,
+};
 
 pub trait MessageCollectorExt {
     /// This already filters for confirm and abort buttons only
@@ -34,10 +41,10 @@ impl MessageCollectorExt for Message {
 /// High abstractions
 #[async_trait]
 pub trait MessagePagerExt {
-    async fn paged_selector<T, F>(
-        &mut self,
+    async fn paged_selector<T, F, 'a>(
+        &'a mut self,
         ctx: &Context,
-        values: &[T],
+        values: &'a [T],
         title: String,
         timeout: Duration,
         button: F
@@ -51,11 +58,12 @@ fn paged_selector_embed<T: Display + Eq + Hash>(
     mut emb: CreateEmbed,
     values: &[T],
     selected: &HashSet<&T>,
+    curr_page: usize,
     ) -> CreateEmbed {
     let role_fields = values.chunks(5 * 4);
     for (i, e) in role_fields.enumerate() {
         emb.field(
-            format!("Page {}", i+1),
+            format!("Page {}{}", i+1, if i == curr_page { " (current)" } else { "" }),
             e.iter().map(|t| {
                     format!(
                         "{} | {}",
@@ -69,10 +77,10 @@ fn paged_selector_embed<T: Display + Eq + Hash>(
 
 #[async_trait]
 impl MessagePagerExt for Message {
-    async fn paged_selector<T, F>(
-        &mut self,
+    async fn paged_selector<T, F, 'a>(
+        &'a mut self,
         ctx: &Context,
-        values: &[T],
+        values: &'a [T],
         title: String,
         timeout: Duration,
         button: F
@@ -122,17 +130,82 @@ impl MessagePagerExt for Message {
             if paged_components.is_empty() { return Ok(Some(HashSet::new())) }
 
             // keep track of what is selected
-            let selected: HashSet<&T> = HashSet::new();
+            let mut selected: HashSet<&T> = HashSet::new();
 
-            let emb = paged_selector_embed(base_emb.clone(), values, &selected);
+            let emb = paged_selector_embed(base_emb.clone(), values, &selected, curr_page);
 
             self.edit(ctx, |m| {
                 m.set_embed(emb);
                 m.components(|c| {
                     c.set_action_rows(paged_components.get(curr_page).unwrap().to_vec());
                     c.create_action_row(|ar| {
-                        // TODO next, prev page
-                        ar.confirm_button().abort_button()
+                        ar.confirm_button().abort_button();
+                        if curr_page > 0 {
+                            ar.prev_button();
+                        }
+                        if curr_page < paged_components.len() - 1 {
+                            ar.next_button();
+                        }
+                        ar
+                    })
+                });
+                m
+            }).await?;
+
+            let mut interactions = self.await_component_interactions(ctx).await;
+
+            loop {
+                // using select instead of collector timeout to reset
+                // timeout after button click
+                select! {
+                    react = interactions.next() => {
+                        // Should always be some
+                        let react = match react {
+                            Some(r) => r,
+                            None => return Ok(None),
+                        };
+
+                        match react.parse_button() {
+                            // a default button
+                            Ok(b) => match b {
+                                Button::Confirm => break,
+                                Button::Abort => return Ok(None),
+                                Button::Next => curr_page += 1,
+                                Button::Previous => curr_page -= 1,
+                            },
+                            // Selected an item
+                            Err(_) => {
+                                let selected_t = mapping.get(&react.data.custom_id).unwrap();
+                                if !selected.remove(selected_t) { selected.insert(selected_t); };
+                            }
+                        }
+
+                        let emb = paged_selector_embed(base_emb.clone(), values, &selected, curr_page);
+                        self.edit(ctx, |m| {
+                            m.set_embed(emb);
+                            m.components(|c| {
+                                c.set_action_rows(paged_components.get(curr_page).unwrap().to_vec());
+                                c.create_action_row(|ar| {
+                                    // TODO next, prev page
+                                    ar.confirm_button().abort_button()
+                                })
+                            });
+                            m
+                        }).await?;
+                    },
+                    _ = sleep(timeout) => return Ok(None),
+                }
+            }
+
+            interactions.stop();
+            // remove components
+            let emb = paged_selector_embed(base_emb.clone(), values, &selected, curr_page);
+            self.edit(ctx, |m| {
+                m.set_embed(emb);
+                m.components(|c| {
+                    c.set_action_rows(paged_components.get(curr_page).unwrap().to_vec());
+                    c.create_action_row(|ar| {
+                        ar
                     })
                 });
                 m

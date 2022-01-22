@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 serenity = { git = "https://github.com/serenity-rs/serenity", branch = "current", features = ["model", "unstable_discord_api", "collector"] }
+tokio = { version = "1.15.0", features = ["rt", "time" ]}

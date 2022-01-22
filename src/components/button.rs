@@ -8,7 +8,7 @@ use serenity::{
 pub(crate) struct ButtonInfo {
     text: &'static str,
     id: &'static str,
-    emoji: char,
+    emoji: &'static str,
 }
 
 impl ButtonInfo {
@@ -17,7 +17,7 @@ impl ButtonInfo {
         button.label(self.text);
         button.custom_id(self.id);
         button.style(ButtonStyle::Primary);
-        button.emoji(ReactionType::from(self.emoji));
+        button.emoji(ReactionType::try_from(self.emoji).unwrap());
         button
     }
 }
@@ -32,12 +32,16 @@ macro_rules! button {
     };
 }
 
-button!(CONFIRM_BUTTON, "confirm", '✅');
-button!(ABORT_BUTTON, "abort", '❌');
+button!(CONFIRM_BUTTON, "confirm", "✅");
+button!(ABORT_BUTTON, "abort", "❌");
+button!(NEXT_BUTTON, "next", "➡️");
+button!(PREV_BUTTON, "previous", "⬅️");
 
 pub enum Button {
     Confirm,
     Abort,
+    Next,
+    Previous,
 }
 
 impl Button {
@@ -45,12 +49,22 @@ impl Button {
         match self {
             Self::Confirm => {
                 let mut b = CONFIRM_BUTTON.create();
-                b.style(ButtonStyle::Primary);
+                b.style(ButtonStyle::Success);
                 b
             }
             Self::Abort => {
                 let mut b = ABORT_BUTTON.create();
                 b.style(ButtonStyle::Danger);
+                b
+            }
+            Self::Next => {
+                let mut b = NEXT_BUTTON.create();
+                b.style(ButtonStyle::Primary);
+                b
+            }
+            Self::Previous => {
+                let mut b = PREV_BUTTON.create();
+                b.style(ButtonStyle::Primary);
                 b
             }
         }
@@ -60,6 +74,8 @@ impl Button {
         match self {
             Self::Confirm => CONFIRM_BUTTON.id,
             Self::Abort => ABORT_BUTTON.id,
+            Self::Next => NEXT_BUTTON.id,
+            Self::Previous => PREV_BUTTON.id,
         }
     }
 }
@@ -83,6 +99,8 @@ impl FromStr for Button {
         match s {
             "_tools_button_confirm" => Ok(Button::Confirm),
             "_tools_button_abort" => Ok(Button::Abort),
+            "_tools_button_next" => Ok(Button::Next),
+            "_tools_button_prev" => Ok(Button::Previous),
             _ => Err(ButtonParseError(s.to_string())),
         }
     }
