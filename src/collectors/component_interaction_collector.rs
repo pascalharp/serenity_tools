@@ -165,6 +165,8 @@ impl MessagePagerExt for Message {
                             None => return Ok(None),
                         };
 
+                        react.defer(ctx).await?;
+
                         match react.parse_button() {
                             // a default button
                             Ok(b) => match b {
