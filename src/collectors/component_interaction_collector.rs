@@ -205,10 +205,7 @@ impl MessagePagerExt for Message {
             self.edit(ctx, |m| {
                 m.set_embed(emb);
                 m.components(|c| {
-                    c.set_action_rows(paged_components.get(curr_page).unwrap().to_vec());
-                    c.create_action_row(|ar| {
-                        ar
-                    })
+                    c
                 });
                 m
             }).await?;

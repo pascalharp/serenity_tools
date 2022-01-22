@@ -34,8 +34,8 @@ macro_rules! button {
 
 button!(CONFIRM_BUTTON, "confirm", "✅");
 button!(ABORT_BUTTON, "abort", "❌");
-button!(NEXT_BUTTON, "next", "➡️");
-button!(PREV_BUTTON, "previous", "⬅️");
+button!(NEXT_BUTTON, "next", "⏩");
+button!(PREV_BUTTON, "previous", "⏪");
 
 pub enum Button {
     Confirm,
