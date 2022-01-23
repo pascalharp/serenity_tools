@@ -220,7 +220,6 @@ impl<'a> UpdatAbleMessage<'a> {
                         let mut ar = paged_components.get(curr_page).unwrap().to_vec();
                         let mut sar = CreateActionRow::default();
                         sar.confirm_button().abort_button();
-                        sar.confirm_button().abort_button();
                         if curr_page > 0 {
                             sar.prev_button();
                         }
