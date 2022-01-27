@@ -100,7 +100,7 @@ impl FromStr for Button {
             "_tools_button_confirm" => Ok(Button::Confirm),
             "_tools_button_abort" => Ok(Button::Abort),
             "_tools_button_next" => Ok(Button::Next),
-            "_tools_button_prev" => Ok(Button::Previous),
+            "_tools_button_previous" => Ok(Button::Previous),
             _ => Err(ButtonParseError(s.to_string())),
         }
     }
