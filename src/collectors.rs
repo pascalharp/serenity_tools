@@ -140,8 +140,8 @@ impl<'a> UpdatAbleMessage<'a> {
 
     pub fn release(self) {}
 
-    pub async fn paged_selector<'b, T, F>(
-        &'a mut self,
+    pub async fn paged_selector<'b, 'c, T, F>(
+        &'c mut self,
         ctx: &Context,
         config: PagedSelectorConfig,
         values: &'b [T],
