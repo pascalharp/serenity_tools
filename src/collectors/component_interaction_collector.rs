@@ -1,11 +1,6 @@
-
-
 use serenity::{
-    client::{bridge::gateway::ShardMessenger},
-    collector::CollectComponentInteraction,
-    model::{
-        channel::{Message},
-    },
+    client::bridge::gateway::ShardMessenger, collector::CollectComponentInteraction,
+    model::channel::Message,
 };
 
 pub trait MessageCollectorExt {

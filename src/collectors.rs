@@ -49,6 +49,8 @@ pub struct PagedSelectorConfig {
     rows_pages: usize,
     // Gets reset after every input
     timeout: Duration,
+    // minimum selection required
+    min: usize,
 }
 
 impl Default for PagedSelectorConfig {
@@ -60,6 +62,7 @@ impl Default for PagedSelectorConfig {
             items_rows: 5,
             rows_pages: 4,
             timeout: Duration::from_secs(60),
+            min: 0,
         }
     }
 }
@@ -92,6 +95,11 @@ impl PagedSelectorConfig {
 
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
         self.timeout = timeout;
+        self
+    }
+
+    pub fn min_select(&mut self, min: usize) -> &mut Self {
+        self.min = min;
         self
     }
 }
@@ -196,7 +204,11 @@ impl<'a> UpdatAbleMessage<'a> {
         let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
         let mut ar = paged_components.get(curr_page).unwrap().to_vec();
         let mut sar = CreateActionRow::default();
-        sar.confirm_button().abort_button();
+        let mut conf_button = Button::Confirm.create();
+        if selected.len() < config.min {
+            conf_button.disabled(true);
+        }
+        sar.add_button(conf_button).abort_button();
         if curr_page > 0 {
             sar.prev_button();
         }
@@ -239,7 +251,11 @@ impl<'a> UpdatAbleMessage<'a> {
                     let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
                     let mut ar = paged_components.get(curr_page).unwrap().to_vec();
                     let mut sar = CreateActionRow::default();
-                    sar.confirm_button().abort_button();
+                    let mut conf_button = Button::Confirm.create();
+                    if selected.len() < config.min {
+                        conf_button.disabled(true);
+                    }
+                    sar.add_button(conf_button).abort_button();
                     if curr_page > 0 {
                         sar.prev_button();
                     }
