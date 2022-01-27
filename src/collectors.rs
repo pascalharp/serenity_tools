@@ -1,25 +1,33 @@
 mod component_interaction_collector;
 
-use std::{time::Duration, collections::{HashSet, HashMap}, fmt::Display, hash::Hash};
-
-pub use component_interaction_collector::{
-    MessageCollectorExt,
-    MessagePagerExt,
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    hash::Hash,
+    time::Duration,
 };
 
+pub use component_interaction_collector::MessageCollectorExt;
+
 use serenity::{
-    Result as SerenityResult,
+    builder::{CreateActionRow, CreateButton, CreateEmbed},
+    client::Context,
+    futures::StreamExt,
     model::{
-        prelude::Message,
+        channel::ReactionType,
         interactions::{
-            message_component::{MessageComponentInteraction, ButtonStyle},
-            application_command::ApplicationCommandInteraction
-        }, channel::ReactionType,
-    }, client::Context, builder::{CreateEmbed, CreateActionRow, CreateButton}, futures::StreamExt
+            application_command::ApplicationCommandInteraction,
+            message_component::{ButtonStyle, MessageComponentInteraction},
+        },
+        prelude::Message,
+    },
+    Result as SerenityResult,
 };
 use tokio::{select, time::sleep};
 
-use crate::{components::Button, builder::CreateActionRowExt, interactions::MessageComponentInteractionExt};
+use crate::{
+    builder::CreateActionRowExt, components::Button, interactions::MessageComponentInteractionExt,
+};
 
 // Since ephemeral Messages cant be updated through Message
 // this is a bit of a work around.
@@ -89,26 +97,34 @@ impl PagedSelectorConfig {
 }
 
 impl<'a> UpdatAbleMessage<'a> {
-    pub async fn update(&mut self, ctx: &Context, embeds: Vec<CreateEmbed>, ars: Vec<CreateActionRow>) -> SerenityResult<()> {
+    pub async fn update(
+        &mut self,
+        ctx: &Context,
+        embeds: Vec<CreateEmbed>,
+        ars: Vec<CreateActionRow>,
+    ) -> SerenityResult<()> {
         match self {
             Self::Message(msg) => {
                 msg.edit(ctx, |m| {
                     m.set_embeds(embeds);
                     m.components(|c| c.set_action_rows(ars))
-                }).await
-            },
+                })
+                .await
+            }
             Self::ApplicationCommand(aci, _) => {
                 aci.edit_original_interaction_response(ctx, |m| {
                     m.set_embeds(embeds);
                     m.components(|c| c.set_action_rows(ars))
-                }).await?;
+                })
+                .await?;
                 Ok(())
-            },
+            }
             Self::ComponentInteraction(mci, _) => {
                 mci.edit_original_interaction_response(ctx, |m| {
                     m.set_embeds(embeds);
                     m.components(|c| c.set_action_rows(ars))
-                }).await?;
+                })
+                .await?;
                 Ok(())
             }
         }
@@ -124,125 +140,127 @@ impl<'a> UpdatAbleMessage<'a> {
 
     pub fn release(self) {}
 
-    pub async fn paged_selector<T, F>(
+    pub async fn paged_selector<'b, T, F>(
         &mut self,
         ctx: &Context,
         config: PagedSelectorConfig,
-        values: &'a [T],
+        values: &'b [T],
         button: F,
-    ) -> SerenityResult<Option<HashSet<&T>>>
+    ) -> SerenityResult<Option<HashSet<&'b T>>>
     where
         T: Display + Eq + Hash + Send + Sync,
-        F: Fn(&T) -> (ReactionType, String) + Send + Sync {
+        F: Fn(&T) -> (ReactionType, String) + Send + Sync,
+    {
+        let mut mapping: HashMap<String, &T> = HashMap::with_capacity(values.len());
+        let mut curr_page: usize = 0;
 
-            let mut mapping: HashMap<String, &T> = HashMap::with_capacity(values.len());
-            let mut curr_page: usize = 0;
+        let paged_components = {
+            // We can have up to 5 Buttons for each action row
+            let value_chunks: Vec<_> = values.chunks(config.items_rows).collect();
+            // Total of 4 rows available for selection. Rest is confirm, abort, ...
+            let row_chunks = value_chunks.chunks(config.rows_pages);
+            // Create Action Rows
+            let mut pages: Vec<Vec<CreateActionRow>> = Vec::with_capacity(row_chunks.len());
+            for rows in row_chunks {
+                let mut new_page = Vec::new();
+                for row in rows {
+                    let mut ar = CreateActionRow::default();
+                    for b in row.iter() {
+                        let (emoji, button_title) = button(b);
+                        let mut button = CreateButton::default();
+                        let custom_id = format!("_tools_selector_{}", &button_title);
+                        button
+                            .emoji(emoji)
+                            .label(&button_title)
+                            .style(ButtonStyle::Primary)
+                            .custom_id(&custom_id);
 
-            let paged_components = {
-                // We can have up to 5 Buttons for each action row
-                let value_chunks: Vec<_> = values.chunks(config.items_rows).collect();
-                // Total of 4 rows available for selection. Rest is confirm, abort, ...
-                let row_chunks = value_chunks.chunks(config.rows_pages);
-                // Create Action Rows
-                let mut pages: Vec<Vec<CreateActionRow>> = Vec::with_capacity(row_chunks.len());
-                for rows in row_chunks {
-                    let mut new_page = Vec::new();
-                    for row in rows {
-                        let mut ar = CreateActionRow::default();
-                        for b in row.iter() {
-                            let (emoji, button_title) = button(b);
-                            let mut button = CreateButton::default();
-                            let custom_id = format!("_tools_selector_{}", &button_title);
-                            button
-                                .emoji(emoji)
-                                .label(&button_title)
-                                .style(ButtonStyle::Primary)
-                                .custom_id(&custom_id);
+                        mapping.insert(custom_id, b);
 
-                            mapping.insert(custom_id, b);
-
-                            ar.add_button(button);
-                        }
-                        new_page.push(ar);
+                        ar.add_button(button);
                     }
-                    pages.push(new_page);
+                    new_page.push(ar);
                 }
-                pages
-            };
-
-            if paged_components.is_empty() { return Ok(Some(HashSet::new())) }
-
-            // keep track of what is selected
-            let mut selected: HashSet<&T> = HashSet::new();
-
-            let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
-            let mut ar = paged_components.get(curr_page).unwrap().to_vec();
-            let mut sar = CreateActionRow::default();
-            sar.confirm_button().abort_button();
-            if curr_page > 0 {
-                sar.prev_button();
+                pages.push(new_page);
             }
-            if curr_page < paged_components.len() - 1 {
-                sar.next_button();
-            }
-            ar.push(sar);
-            self.update(ctx, emb, ar).await?;
+            pages
+        };
 
-            let mut interactions = self.msg().await_component_interactions(ctx).await;
-
-            loop {
-                // using select instead of collector timeout to reset
-                // timeout after button click
-                select! {
-                    react = interactions.next() => {
-                        // Should always be some
-                        let react = match react {
-                            Some(r) => r,
-                            None => return Ok(None),
-                        };
-
-                        react.defer(ctx).await?;
-
-                        match react.parse_button() {
-                            // a default button
-                            Ok(b) => match b {
-                                Button::Confirm => break,
-                                Button::Abort => return Ok(None),
-                                Button::Next => curr_page += 1,
-                                Button::Previous => curr_page -= 1,
-                            },
-                            // Selected an item
-                            Err(_) => {
-                                let selected_t = mapping.get(&react.data.custom_id).unwrap();
-                                if !selected.remove(selected_t) { selected.insert(selected_t); };
-                            }
-                        }
-
-                        let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
-                        let mut ar = paged_components.get(curr_page).unwrap().to_vec();
-                        let mut sar = CreateActionRow::default();
-                        sar.confirm_button().abort_button();
-                        if curr_page > 0 {
-                            sar.prev_button();
-                        }
-                        if curr_page < paged_components.len() - 1 {
-                            sar.next_button();
-                        }
-                        ar.push(sar);
-                        self.update(ctx, emb, ar).await?;
-                    },
-                    _ = sleep(config.timeout) => return Ok(None),
-                }
-            }
-
-            interactions.stop();
-            // remove components
-            let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
-            let ars = Vec::new();
-            self.update(ctx, emb, ars).await?;
-
-            Ok(Some(selected))
+        if paged_components.is_empty() {
+            return Ok(Some(HashSet::new()));
         }
+
+        // keep track of what is selected
+        let mut selected: HashSet<&T> = HashSet::new();
+
+        let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
+        let mut ar = paged_components.get(curr_page).unwrap().to_vec();
+        let mut sar = CreateActionRow::default();
+        sar.confirm_button().abort_button();
+        if curr_page > 0 {
+            sar.prev_button();
+        }
+        if curr_page < paged_components.len() - 1 {
+            sar.next_button();
+        }
+        ar.push(sar);
+        self.update(ctx, emb, ar).await?;
+
+        let mut interactions = self.msg().await_component_interactions(ctx).await;
+
+        loop {
+            // using select instead of collector timeout to reset
+            // timeout after button click
+            select! {
+                react = interactions.next() => {
+                    // Should always be some
+                    let react = match react {
+                        Some(r) => r,
+                        None => return Ok(None),
+                    };
+
+                    react.defer(ctx).await?;
+
+                    match react.parse_button() {
+                        // a default button
+                        Ok(b) => match b {
+                            Button::Confirm => break,
+                            Button::Abort => return Ok(None),
+                            Button::Next => curr_page += 1,
+                            Button::Previous => curr_page -= 1,
+                        },
+                        // Selected an item
+                        Err(_) => {
+                            let selected_t = mapping.get(&react.data.custom_id).unwrap();
+                            if !selected.remove(selected_t) { selected.insert(selected_t); };
+                        }
+                    }
+
+                    let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
+                    let mut ar = paged_components.get(curr_page).unwrap().to_vec();
+                    let mut sar = CreateActionRow::default();
+                    sar.confirm_button().abort_button();
+                    if curr_page > 0 {
+                        sar.prev_button();
+                    }
+                    if curr_page < paged_components.len() - 1 {
+                        sar.next_button();
+                    }
+                    ar.push(sar);
+                    self.update(ctx, emb, ar).await?;
+                },
+                _ = sleep(config.timeout) => return Ok(None),
+            }
+        }
+
+        interactions.stop();
+        // remove components
+        let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
+        let ars = Vec::new();
+        self.update(ctx, emb, ars).await?;
+
+        Ok(Some(selected))
+    }
 }
 
 fn paged_selector_embed<T: Display + Eq + Hash>(
@@ -250,13 +268,18 @@ fn paged_selector_embed<T: Display + Eq + Hash>(
     values: &[T],
     selected: &HashSet<&T>,
     curr_page: usize,
-    ) -> CreateEmbed {
+) -> CreateEmbed {
     let mut emb = config.base_embed.clone();
     let role_fields = values.chunks(config.items_rows * config.rows_pages);
     for (i, e) in role_fields.enumerate() {
         emb.field(
-            format!("Page {}{}", i+1, if i == curr_page { " (current)" } else { "" }),
-            e.iter().map(|t| {
+            format!(
+                "Page {}{}",
+                i + 1,
+                if i == curr_page { " (current)" } else { "" }
+            ),
+            e.iter()
+                .map(|t| {
                     format!(
                         "{} | {}",
                         if selected.contains(t) {
@@ -264,9 +287,13 @@ fn paged_selector_embed<T: Display + Eq + Hash>(
                         } else {
                             &config.unselected_emoj
                         },
-                        t.to_string())
-            }).collect::<Vec<_>>().join("\n"),
-            true);
+                        t.to_string()
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
+            true,
+        );
     }
-     emb
+    emb
 }

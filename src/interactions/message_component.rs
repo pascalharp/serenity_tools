@@ -1,13 +1,21 @@
 use serenity::{
     async_trait,
+    builder::CreateEmbed,
     client::Context,
-    model::{interactions::{
-        message_component::MessageComponentInteraction, InteractionResponseType, InteractionApplicationCommandCallbackDataFlags,
-    }, channel::Message},
-    Result, builder::CreateEmbed,
+    model::{
+        channel::Message,
+        interactions::{
+            message_component::MessageComponentInteraction,
+            InteractionApplicationCommandCallbackDataFlags, InteractionResponseType,
+        },
+    },
+    Result,
 };
 
-use crate::{components::{Button, ButtonParseError}, builder::CreateEmbedExt};
+use crate::{
+    builder::CreateEmbedExt,
+    components::{Button, ButtonParseError},
+};
 use std::result::Result as StdResult;
 
 #[async_trait]
