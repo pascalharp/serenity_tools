@@ -68,32 +68,32 @@ impl Default for PagedSelectorConfig {
 }
 
 impl PagedSelectorConfig {
-    pub fn set_base_embed(&mut self, base_embed: CreateEmbed) -> &mut Self {
+    pub fn base_embed(&mut self, base_embed: CreateEmbed) -> &mut Self {
         self.base_embed = base_embed;
         self
     }
 
-    pub fn set_unselected_emoji(&mut self, emoji: ReactionType) -> &mut Self {
+    pub fn unselected_emoji(&mut self, emoji: ReactionType) -> &mut Self {
         self.unselected_emoj = emoji;
         self
     }
 
-    pub fn set_selected_emoji(&mut self, emoji: ReactionType) -> &mut Self {
+    pub fn selected_emoji(&mut self, emoji: ReactionType) -> &mut Self {
         self.selected_emoji = emoji;
         self
     }
 
-    pub fn set_items_per_row(&mut self, count: usize) -> &mut Self {
+    pub fn items_per_row(&mut self, count: usize) -> &mut Self {
         self.items_rows = count;
         self
     }
 
-    pub fn set_rows_per_page(&mut self, count: usize) -> &mut Self {
+    pub fn rows_per_page(&mut self, count: usize) -> &mut Self {
         self.rows_pages = count;
         self
     }
 
-    pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
         self.timeout = timeout;
         self
     }
