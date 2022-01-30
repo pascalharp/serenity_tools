@@ -39,7 +39,7 @@ pub enum UpdatAbleMessage<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct PagedSelectorConfig {
+pub struct PagedSelectorConfig<'a, T> {
     base_embed: CreateEmbed,
     unselected_emoj: ReactionType,
     selected_emoji: ReactionType,
@@ -51,9 +51,11 @@ pub struct PagedSelectorConfig {
     timeout: Duration,
     // minimum selection required
     min: usize,
+    // pre selected values when
+    pre_selected: Option<&'a [&'a T]>,
 }
 
-impl Default for PagedSelectorConfig {
+impl<T> Default for PagedSelectorConfig<'_, T> {
     fn default() -> Self {
         Self {
             base_embed: Default::default(),
@@ -63,11 +65,12 @@ impl Default for PagedSelectorConfig {
             rows_pages: 4,
             timeout: Duration::from_secs(60),
             min: 0,
+            pre_selected: None,
         }
     }
 }
 
-impl PagedSelectorConfig {
+impl<'a, T> PagedSelectorConfig<'a, T> {
     pub fn base_embed(&mut self, base_embed: CreateEmbed) -> &mut Self {
         self.base_embed = base_embed;
         self
@@ -100,6 +103,11 @@ impl PagedSelectorConfig {
 
     pub fn min_select(&mut self, min: usize) -> &mut Self {
         self.min = min;
+        self
+    }
+
+    pub fn pre_selected(&mut self, pre_selected: &'a [&'a T]) -> &mut Self {
+        self.pre_selected = Some(pre_selected);
         self
     }
 }
@@ -151,7 +159,7 @@ impl<'a> UpdatAbleMessage<'a> {
     pub async fn paged_selector<'b, 'c, T, F>(
         &'c mut self,
         ctx: &Context,
-        config: PagedSelectorConfig,
+        config: PagedSelectorConfig<'b, T>,
         values: &'b [T],
         button: F,
     ) -> SerenityResult<Option<HashSet<&'b T>>>
@@ -200,6 +208,11 @@ impl<'a> UpdatAbleMessage<'a> {
 
         // keep track of what is selected
         let mut selected: HashSet<&T> = HashSet::new();
+        if let Some(pre_sel) = config.pre_selected {
+            for s in pre_sel {
+                selected.insert(s);
+            }
+        }
 
         let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
         let mut ar = paged_components.get(curr_page).unwrap().to_vec();
@@ -280,7 +293,7 @@ impl<'a> UpdatAbleMessage<'a> {
 }
 
 fn paged_selector_embed<T: Display + Eq + Hash>(
-    config: &PagedSelectorConfig,
+    config: &PagedSelectorConfig<T>,
     values: &[T],
     selected: &HashSet<&T>,
     curr_page: usize,
