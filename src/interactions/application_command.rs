@@ -32,10 +32,23 @@ pub trait ApplicationCommandInteractionExt {
         ephemeral: bool,
     ) -> Result<()>;
 
+    async fn create_quick_success<T: ToString + Send>(
+        &self,
+        ctx: &Context,
+        text: T,
+        ephemeral: bool,
+    ) -> Result<()>;
+
     async fn edit_quick_info<T: ToString + Send>(&self, ctx: &Context, text: T) -> Result<Message>;
 
     async fn edit_quick_error<T: ToString + Send>(&self, ctx: &Context, text: T)
         -> Result<Message>;
+
+    async fn edit_quick_success<T: ToString + Send>(
+        &self,
+        ctx: &Context,
+        text: T,
+    ) -> Result<Message>;
 
     async fn create_followup_quick_info<T: ToString + Send>(
         &self,
@@ -111,6 +124,24 @@ impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
         .await
     }
 
+    async fn create_quick_success<T: ToString + Send>(
+        &self,
+        ctx: &Context,
+        text: T,
+        ephemeral: bool,
+    ) -> Result<()> {
+        self.create_interaction_response(ctx, |r| {
+            r.kind(InteractionResponseType::ChannelMessageWithSource);
+            r.interaction_response_data(|d| {
+                if ephemeral {
+                    d.flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL);
+                }
+                d.add_embed(CreateEmbed::success_box(text))
+            })
+        })
+        .await
+    }
+
     async fn edit_quick_info<T: ToString + Send>(&self, ctx: &Context, text: T) -> Result<Message> {
         self.edit_original_interaction_response(ctx, |d| {
             d.content("");
@@ -131,6 +162,20 @@ impl ApplicationCommandInteractionExt for ApplicationCommandInteraction {
             d.set_embeds(Vec::new());
             d.components(|c| c);
             d.add_embed(CreateEmbed::error_box(text))
+        })
+        .await
+    }
+
+    async fn edit_quick_success<T: ToString + Send>(
+        &self,
+        ctx: &Context,
+        text: T,
+    ) -> Result<Message> {
+        self.edit_original_interaction_response(ctx, |d| {
+            d.content("");
+            d.set_embeds(Vec::new());
+            d.components(|c| c);
+            d.add_embed(CreateEmbed::success_box(text))
         })
         .await
     }
