@@ -15,10 +15,19 @@ fn _error_box(text: String) -> CreateEmbed {
     e
 }
 
+fn _text_box(text: String) -> CreateEmbed {
+    let mut e = CreateEmbed::default();
+    e.color((0, 255, 0));
+    e.field("**OK**", text, false);
+    e
+}
+
 pub trait CreateEmbedExt {
     fn info_box<T: ToString>(text: T) -> Self;
 
     fn error_box<T: ToString>(text: T) -> Self;
+
+    fn success_box<T: ToString>(text: T) -> Self;
 
     fn fields_chunked_fmt<'a, T, F>(
         &mut self,
@@ -51,6 +60,11 @@ impl CreateEmbedExt for CreateEmbed {
     fn error_box<T: ToString>(text: T) -> Self {
         let text = text.to_string();
         _error_box(text)
+    }
+
+    fn success_box<T: ToString>(text: T) -> Self {
+        let text = text.to_string();
+        _text_box(text)
     }
 
     fn fields_chunked_fmt<'a, T, F>(
