@@ -21,7 +21,7 @@ use serenity::{
         },
         prelude::Message,
     },
-    Result as SerenityResult,
+    Error as SerenityError, Result as SerenityResult,
 };
 use tokio::{select, time::sleep};
 
@@ -112,6 +112,31 @@ impl<'a, T> PagedSelectorConfig<'a, T> {
     }
 }
 
+#[derive(Debug)]
+pub enum PagedSelectorError {
+    TimedOut,
+    Aborted,
+    Serenity(serenity::Error),
+}
+
+impl Display for PagedSelectorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TimedOut => write!(f, "Paged Selector timed out"),
+            Self::Aborted => write!(f, "Paged Selector was aborted"),
+            Self::Serenity(e) => e.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for PagedSelectorError {}
+
+impl From<SerenityError> for PagedSelectorError {
+    fn from(e: SerenityError) -> Self {
+        Self::Serenity(e)
+    }
+}
+
 impl<'a> UpdatAbleMessage<'a> {
     pub async fn update(
         &mut self,
@@ -162,7 +187,7 @@ impl<'a> UpdatAbleMessage<'a> {
         config: PagedSelectorConfig<'b, T>,
         values: &'b [T],
         button: F,
-    ) -> SerenityResult<Option<HashSet<&'b T>>>
+    ) -> Result<HashSet<&'b T>, PagedSelectorError>
     where
         T: Display + Eq + Hash + Send + Sync,
         F: Fn(&T) -> (ReactionType, String) + Send + Sync,
@@ -203,7 +228,7 @@ impl<'a> UpdatAbleMessage<'a> {
         };
 
         if paged_components.is_empty() {
-            return Ok(Some(HashSet::new()));
+            return Ok(HashSet::new());
         }
 
         // keep track of what is selected
@@ -239,18 +264,16 @@ impl<'a> UpdatAbleMessage<'a> {
             select! {
                 react = interactions.next() => {
                     // Should always be some
-                    let react = match react {
-                        Some(r) => r,
-                        None => return Ok(None),
-                    };
-
-                    react.defer(ctx).await?;
+                    let react = react.unwrap();
 
                     match react.parse_button() {
                         // a default button
                         Ok(b) => match b {
                             Button::Confirm => break,
-                            Button::Abort => return Ok(None),
+                            Button::Abort => {
+                                react.defer(ctx).await?;
+                                return Err(PagedSelectorError::Aborted);
+                            },
                             Button::Next => curr_page += 1,
                             Button::Previous => curr_page -= 1,
                         },
@@ -276,9 +299,10 @@ impl<'a> UpdatAbleMessage<'a> {
                         sar.next_button();
                     }
                     ar.push(sar);
+                    react.defer(ctx).await?;
                     self.update(ctx, emb, ar).await?;
                 },
-                _ = sleep(config.timeout) => return Ok(None),
+                _ = sleep(config.timeout) => return Err(PagedSelectorError::TimedOut),
             }
         }
 
@@ -288,7 +312,7 @@ impl<'a> UpdatAbleMessage<'a> {
         let ars = Vec::new();
         self.update(ctx, emb, ars).await?;
 
-        Ok(Some(selected))
+        Ok(selected)
     }
 }
 
