@@ -269,7 +269,10 @@ impl<'a> UpdatAbleMessage<'a> {
                     match react.parse_button() {
                         // a default button
                         Ok(b) => match b {
-                            Button::Confirm => break,
+                            Button::Confirm => {
+                                react.defer(ctx).await?;
+                                return Ok(selected);
+                            },
                             Button::Abort => {
                                 react.defer(ctx).await?;
                                 return Err(PagedSelectorError::Aborted);
@@ -305,14 +308,6 @@ impl<'a> UpdatAbleMessage<'a> {
                 _ = sleep(config.timeout) => return Err(PagedSelectorError::TimedOut),
             }
         }
-
-        interactions.stop();
-        // remove components
-        let emb = vec![paged_selector_embed(&config, values, &selected, curr_page)];
-        let ars = Vec::new();
-        self.update(ctx, emb, ars).await?;
-
-        Ok(selected)
     }
 }
 
