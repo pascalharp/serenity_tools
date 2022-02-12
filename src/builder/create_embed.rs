@@ -80,7 +80,7 @@ impl CreateEmbedExt for CreateEmbed {
     {
         let chunks = content.chunks(count);
         for c in chunks {
-            let field_text = c.iter().map(|t| fmt(t)).collect::<Vec<_>>().join("\n");
+            let field_text = c.iter().map(&fmt).collect::<Vec<_>>().join("\n");
             self.field(title, field_text, inline);
         }
 

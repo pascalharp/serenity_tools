@@ -340,7 +340,7 @@ fn paged_selector_embed<T: Display + Eq + Hash>(
                         } else {
                             &config.unselected_emoj
                         },
-                        t.to_string()
+                        t
                     )
                 })
                 .collect::<Vec<_>>()
