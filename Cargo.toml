@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serenity = { git = "https://github.com/serenity-rs/serenity", branch = "current", default-features = false, features = ["builder", "client", "http", "model", "unstable_discord_api", "collector", "rustls_backend"] }
+serenity = { version = "0.10.10", default-features = false, features = ["builder", "client", "http", "model", "unstable_discord_api", "collector", "rustls_backend"] }
 tokio = { version = "1.15.0", features = ["rt", "time" ]}
