@@ -256,7 +256,7 @@ impl<'a> UpdatAbleMessage<'a> {
         ar.push(sar);
         self.update(ctx, emb, ar).await?;
 
-        let mut interactions = self.msg().await_component_interactions(ctx).await;
+        let mut interactions = self.msg().await_component_interactions(ctx).build();
 
         loop {
             // using select instead of collector timeout to reset

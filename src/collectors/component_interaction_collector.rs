@@ -5,17 +5,17 @@ use serenity::{
 
 pub trait MessageCollectorExt {
     /// This already filters for confirm and abort buttons only
-    fn await_confirm_abort_interaction<'a>(
+    fn await_confirm_abort_interaction(
         &self,
-        shard_messenger: &'a impl AsRef<ShardMessenger>,
-    ) -> CollectComponentInteraction<'a>;
+        shard_messenger: & impl AsRef<ShardMessenger>,
+    ) -> CollectComponentInteraction;
 }
 
 impl MessageCollectorExt for Message {
-    fn await_confirm_abort_interaction<'a>(
+    fn await_confirm_abort_interaction(
         &self,
-        shard_messenger: &'a impl AsRef<ShardMessenger>,
-    ) -> CollectComponentInteraction<'a> {
+        shard_messenger: & impl AsRef<ShardMessenger>,
+    ) -> CollectComponentInteraction {
         self.await_component_interaction(shard_messenger)
             .filter(|mci| {
                 matches!(
